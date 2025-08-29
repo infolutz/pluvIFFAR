@@ -1,0 +1,176 @@
+Prompt: Plataforma Web PluvIFFAR (recepção e visualização de dados de pluviômetros)
+Contexto
+
+Desenvolver uma plataforma web minimalista para receber, armazenar e visualizar dados de precipitação enviados por dispositivos de baixo custo baseados em ESP8266 (pluviômetro de báscula com reed switch). O sistema terá uma área pública de visualização e uma área administrativa acessível apenas por /admin. A base do projeto é um sistema de monitoramento de chuva de baixo custo com transmissão via Wi-Fi e webservice. (Referência conceitual do projeto PluvIFFAR.) 
+
+Objetivo
+
+Receber leituras de chuva de múltiplos dispositivos (cada leitura representa basculamentos ou volume).
+
+Cadastrar e gerenciar dispositivos (apenas admin).
+
+Exibir, no modo público, um painel por localidade com precipitação atual e histórico diário/mensal/anual, além do ponto no mapa.
+
+Requisitos Funcionais
+1) Área Pública (sem login)
+
+Layout minimalista:
+
+Sidebar esquerda: lista de “Localidades” cadastradas (nome da localidade ou do usuário).
+
+Painel central (localidade selecionada):
+
+Cartão com precipitação atual (hoje) e última atualização.
+
+Abaixo, abas/botões para histórico Diário | Mensal | Anual, com gráfico e tabela simples.
+
+Mapa exibindo um marcador na latitude/longitude do pluviômetro selecionado.
+
+Localidade padrão ao carregar o site: “IFFar – Campus Panambi” (use coordenadas placeholder e deixe parametrizável).
+
+Sem qualquer opção de login na área pública.
+
+2) Área Administrativa
+
+Acesso exclusivo por URL: /admin.
+
+Tela de login simples solicitando usuário e senha (session/cookie seguro).
+
+Tela “Cadastrar Dispositivo” com campos obrigatórios:
+
+Código do ESP8266 (string curta; servirá como “chave do dispositivo” para autenticar no endpoint de leitura).
+
+Endereço MAC (validação de formato).
+
+Latitude e Longitude (float).
+
+Nome da Localidade/Usuário (ex.: “Sítio São João (Carlos)”).
+
+Listagem de Dispositivos com busca/edição/desativação.
+
+Validações e feedbacks claros (toasts/alerts).
+
+3) Ingestão de Dados (API)
+
+Endpoint público para o dispositivo enviar dados (HTTP/HTTPS):
+
+POST /api/v1/readings
+
+Autenticação embutida no payload:
+
+device_code (o “Código do ESP8266” cadastrado).
+
+mac_address (deve bater com o cadastrado).
+
+Payload (JSON) mínimo:
+
+{
+  "device_code": "ABC123",
+  "mac_address": "84:cc:a8:12:34:56",
+  "timestamp": "2025-08-17T23:12:00Z",
+  "ticks": 1,
+  "mm_per_tick": 0.25,
+  "battery_mv": 3850
+}
+
+
+ticks: número de basculamentos desde a última publicação OU acumulado do intervalo.
+
+mm_per_tick: coeficiente de calibração (ex.: 0.25 mm por basculamento). Se não vier, usar valor padrão definido por dispositivo.
+
+Resposta de sucesso:
+
+{ "status": "ok", "stored": true, "reading_id": "..." }
+
+
+Erros comuns: 401 (device_code/MAC inválidos), 422 (payload inválido).
+
+Obs.: O sistema deve consolidar as leituras por localidade para compor acumulados do dia (00:00–23:59 local), do mês e do ano.
+
+4) Visualização de Histórico
+
+Diário: linha/coluna por hora e total do dia; gráfico de linha ou barras.
+
+Mensal: soma diária do mês; gráfico de barras (dias).
+
+Anual: soma mensal do ano; gráfico de barras (meses).
+
+Exportação CSV simples por intervalo.
+
+5) Mapa
+
+Exibir marcador do pluviômetro da localidade ativa (OpenStreetMap + Leaflet ou similar).
+
+Popup com nome da localidade, precipitação de hoje e última atualização.
+
+Requisitos Não Funcionais
+
+Linguagem/Stack sugerida (pode adaptar):
+
+Backend: Node.js (Express/Fastify) ou Python (FastAPI).
+
+Banco: PostgreSQL (com PostGIS opcional para geocampos) ou SQLite para MVP.
+
+Frontend: SPA leve (Vite + React) ou server-rendered simples com templates (minimalista).
+
+Gráficos: Chart.js / ECharts.
+
+Mapa: Leaflet.
+
+Internacionalização: pt-BR por padrão.
+
+Segurança: rate-limit no endpoint de ingestão; verificação de MAC + device_code; logs de auditoria em /admin.
+
+Observabilidade: logs estruturados, healthcheck em /healthz.
+
+Modelo de Dados (sugestão)
+
+devices (id, device_code [único], mac_address, name, latitude, longitude, mm_per_tick_default, active, created_at)
+
+readings (id, device_id [FK], timestamp, ticks, mm_per_tick, battery_mv, created_at)
+
+Views/materialized views para agregações por dia/mês/ano.
+
+Sementes/Config
+
+Criar localidade padrão: “IFFar – Campus Panambi” (lat/lon parametrizadas).
+
+Usuário admin inicial via ENV (ex.: ADMIN_USER, ADMIN_PASS).
+
+Variáveis de ambiente para DB e CORS.
+
+UI/UX (detalhes)
+
+Sidebar com busca e scroll; item ativo destacado.
+
+Painel central com:
+
+“Precipitação hoje (mm)” em destaque, “última leitura há X min”.
+
+Abas “Diário / Mensal / Anual” — trocar apenas o gráfico e a tabela.
+
+Mapa logo abaixo (ou ao lado em telas largas).
+
+Responsivo: mobile-first; legível em 320px+.
+
+Critérios de Aceite
+
+Ao abrir o site público, a primeira localidade exibida é “IFFar – Campus Panambi”.
+
+/admin exige login e permite cadastrar dispositivo com todos os campos e validações.
+
+POST /api/v1/readings armazena leituras quando device_code e mac_address são válidos.
+
+Painel da localidade mostra hoje, gráficos diário/mensal/anual e marcador no mapa.
+
+Exportação CSV funciona nos três modos (período correspondente).
+
+Sem opção de login na área pública, apenas /admin.
+
+Extras (opcionais úteis)
+
+Campo signal_dbm no payload para diagnóstico de conectividade.
+
+Página pública “/status” listando localidades ativas, última atualização e link para cada painel.
+
+Job de consolidação/repair para leituras atrasadas.
