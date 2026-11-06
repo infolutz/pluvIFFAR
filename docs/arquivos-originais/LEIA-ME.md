@@ -1,0 +1,1 @@
+Arquivos recebidos antes da reconstrução, preservados apenas como referência. Vários contêm mensagens de erro em vez de código. A documentação antiga descreve uma implementação ausente; siga o README na raiz para executar a versão reconstruída.
